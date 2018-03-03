@@ -43,22 +43,29 @@ type Party = [Character]
 
 ------------------------- PART 1: Events
 
-data Game  = (Game Node Party [Party]) | (Game Won)
+data Game = Won | Game Node Party [Party]
   deriving (Eq,Show)
 
-
+-- What do they mean by your file needs to type check? Include a?
 start :: Game
 start =  Game 6 [] characters
 
 end :: Game
 end = Won
 
+type Event = Game -> Game
 
 applyAt :: Int -> (a -> a) -> [a] -> [a]
-applyAt = undefined
+applyAt i f xs
+    | i >= length xs = error "Index out of bounds"
+    | otherwise      = ys ++ [f x] ++ zs
+        where (ys, x:zs) = splitAt i xs
 
---updateAt :: Node -> Party -> Party -> Event
-updateAt = undefined
+updateAt :: Node -> Party -> Party -> Event
+updateAt m xs ys (Game n p ps) = Game n p (applyAt m (merge (minus (ps !! m) xs)) ps)
+
+--Game n p (applyAt m (merge ys) (applyAt 0 (minus (ps !! m)) xs))
+--Game n p (applyAt m (merge (minus (ps !! m) xs)) ys)
 
 --update :: Party -> Party -> Party -> Event
 update = undefined
