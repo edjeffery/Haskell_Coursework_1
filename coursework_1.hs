@@ -18,6 +18,11 @@ minus (x:xs) (y:ys)
     | x == y    =     minus    xs    ys
     | otherwise =     minus (x:xs)   ys
 
+flipminus :: Ord a => [a] -> [a] -> [a]
+flipminus xs [] = xs
+flipminus [] ys = []
+flipminus xs ys = flip minus xs ys
+
 msort :: Ord a => [a] -> [a]
 msort []  = []
 msort [x] = [x]
@@ -63,16 +68,17 @@ applyAt i f xs
         where (ys, x:zs) = splitAt i xs
 
 updateAt :: Node -> Party -> Party -> Event
+updateAt _ _ _ Won = Won
+updateAt m xs ys (Game n p ps) = Game n p (applyAt m (merge ys) (applyAt m (flipminus xs) ps))
+
+{-
+updateAt :: Node -> Party -> Party -> Event
 updateAt m xs ys Won = Won
 updateAt m xs ys (Game n p ps) = (Game n p merged)
     where
         (zs, w:ws) = splitAt m ps
         minused = zs ++ [minus w xs] ++ ws
         merged = applyAt m (merge ys) minused
-
---Game n p (applyAt m (merge (minus (ps !! m) xs)) ps)
---Game n p (applyAt m (merge ys) (applyAt 0 (minus (ps !! m)) xs))
---Game n p (applyAt m (merge (minus (ps !! m) xs)) ys)
 
 update :: Party -> Party -> Party -> Event
 update xs ys zs Won           = Won
@@ -82,6 +88,14 @@ update xs ys zs (Game n p ps) = (Game n q merged)
         (vs, w:ws) = splitAt n ps
         minused = vs ++ [minus w xs] ++ ws
         merged = applyAt n (merge zs) minused
+-}
+
+update :: Party -> Party -> Party -> Event
+update _  _  _   Won          = Won
+update xs ys zs (Game n p ps) = Game n q qs
+    where
+        q  = merge (minus p xs) ys
+        qs = applyAt n (merge zs) (applyAt n (flipminus xs) ps)
 
 
 ------------------------- PART 2: Dialogues
@@ -113,13 +127,10 @@ dialogue (Game n p ps) (Action s e) = do
     putStrLn s
     return (e (Game n p ps))
 
---if input `elem` exitWords
---then return (Game n p ps)
---else if input `elem` [1..(length xs)] --where l = length xs
--- then return (Game n p ps) --change
-
 findDialogue :: Party -> Dialogue
-findDialogue = undefined
+findDialogue p = undefined
+
+-- I think I need to msort the result in one of the previous exercises
 
 ------------------------- PART 3: The game loop
 
