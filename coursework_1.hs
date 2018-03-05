@@ -54,6 +54,7 @@ end :: Game
 end = Won
 
 type Event = Game -> Game
+--newtype Event = Game
 
 applyAt :: Int -> (a -> a) -> [a] -> [a]
 applyAt i f xs
@@ -62,19 +63,32 @@ applyAt i f xs
         where (ys, x:zs) = splitAt i xs
 
 updateAt :: Node -> Party -> Party -> Event
-updateAt m xs ys (Game n p ps) = Game n p (applyAt m (merge (minus (ps !! m) xs)) ps)
+updateAt m xs ys Won = Won
+updateAt m xs ys (Game n p ps) = (Game n p merged)
+    where
+        (zs, w:ws) = splitAt m ps
+        minused = zs ++ [minus w xs] ++ ws
+        merged = applyAt m (merge ys) minused
 
+--Game n p (applyAt m (merge (minus (ps !! m) xs)) ps)
 --Game n p (applyAt m (merge ys) (applyAt 0 (minus (ps !! m)) xs))
 --Game n p (applyAt m (merge (minus (ps !! m) xs)) ys)
 
---update :: Party -> Party -> Party -> Event
-update = undefined
+update :: Party -> Party -> Party -> Event
+update xs ys zs Won           = Won
+update xs ys zs (Game n p ps) = (Game n q merged)
+    where
+        q = merge (minus p xs) ys
+        (vs, w:ws) = splitAt n ps
+        minused = vs ++ [minus w xs] ++ ws
+        merged = applyAt n (merge zs) minused
 
 
 ------------------------- PART 2: Dialogues
 
 data Dialogue = End     String
               | Choice  String  [( String , Dialogue )]
+              | Action  String  Event
 
 exitWords = ["X","x","Q","q","Exit","exit","Quit","quit"]
 
@@ -82,7 +96,27 @@ enumerate :: Int -> [String] -> String
 enumerate n xs = unlines [ "  " ++ show i ++ ". " ++ x | (i,x) <- zip [n..] xs ]
 
 dialogue :: Game -> Dialogue -> IO Game
-dialogue = undefined
+dialogue (Game n p ps) (End s) = do
+    putStrLn s
+    return (Game n p ps)
+dialogue (Game n p ps) (Choice s xs) = do
+    putStrLn s
+    putStrLn (enumerate 1 [ x | (x,_) <- xs ])
+    input <- getLine
+    let intInput = (read input :: Int)
+    if input `elem` exitWords
+      then return (Game n p ps)
+      else if intInput `elem` [1..10]
+        then dialogue (Game n p ps) ([ x | (_,x) <- xs ] !! (intInput - 1))
+        else return (Game n p ps)
+dialogue (Game n p ps) (Action s e) = do
+    putStrLn s
+    return (e (Game n p ps))
+
+--if input `elem` exitWords
+--then return (Game n p ps)
+--else if input `elem` [1..(length xs)] --where l = length xs
+-- then return (Game n p ps) --change
 
 findDialogue :: Party -> Dialogue
 findDialogue = undefined
@@ -169,7 +203,7 @@ locations =
 theMap :: Map
 theMap = [(1,5), (2,4), (2,6), (3,5), (4,5), (4,6)]
 
-{-
+
 dialogues :: [(Party,Dialogue)]
 dialogues =
  [ (["Mario"] , Choice "I need to save the Princess."
@@ -247,5 +281,3 @@ dialogues =
  , (["Pikachu","Team Rocket"] , End "Hey, look at this! Get a load! Let's grab- ALL GLORY TO THE HYPNOTOAD")
  , (["Portal Gun"] , End "I am an inanimate object. What did you expect?")
  ]
-
--}
