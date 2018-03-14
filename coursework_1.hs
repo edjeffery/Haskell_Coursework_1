@@ -59,7 +59,6 @@ end :: Game
 end = Won
 
 type Event = Game -> Game
---newtype Event = Game
 
 applyAt :: Int -> (a -> a) -> [a] -> [a]
 applyAt i f xs
@@ -110,30 +109,76 @@ enumerate :: Int -> [String] -> String
 enumerate n xs = unlines [ "  " ++ show i ++ ". " ++ x | (i,x) <- zip [n..] xs ]
 
 dialogue :: Game -> Dialogue -> IO Game
-dialogue (Game n p ps) (End s) = do
+dialogue game (End s) = do
     putStrLn s
-    return (Game n p ps)
-dialogue (Game n p ps) (Choice s xs) = do
+    return game
+dialogue game (Action s e) = do
     putStrLn s
-    putStrLn (enumerate 1 [ x | (x,_) <- xs ])
+    return (e game)
+dialogue game (Choice s xs) = do
+    putStrLn s
+    let ys = [ x | (x,_) <- xs ]
+    putStrLn (enumerate 1 ys)
     input <- getLine
     let intInput = (read input :: Int)
     if input `elem` exitWords
-      then return (Game n p ps)
-      else if intInput `elem` [1..10]
-        then dialogue (Game n p ps) ([ x | (_,x) <- xs ] !! (intInput - 1))
-        else return (Game n p ps)
-dialogue (Game n p ps) (Action s e) = do
-    putStrLn s
-    return (e (Game n p ps))
+      then do
+          putStrLn ""
+          return game
+      else if intInput `elem` [1..length(ys)]
+           then do
+               let zs = [ x | (_,x) <- xs ]
+               dialogue game (zs !! (intInput - 1))
+           else dialogue game (Choice s xs)
+
 
 findDialogue :: Party -> Dialogue
-findDialogue p = undefined
+findDialogue p = search p dialogues
+    where
+        search [] _ = End "There is nothing we can do."
+        search _ [] = End "There is nothing we can do."
+        search p ((q,d):ds)
+            | p == q    = d
+            | otherwise = search p ds
 
--- I think I need to msort the result in one of the previous exercises
 
 ------------------------- PART 3: The game loop
 
+loop :: Game -> IO ()
+loop  Won          = do
+    return ()
+loop (Game n p ps) = do
+    putStr "You are in "
+    putStrLn (locations !! n)
+    let ns = bothWays n theMap
+    let xs = [ locations !! x | x <- ns ]
+    putStr "You can travel to\n"
+    putStr (enumerate 1 xs)
+    putStr "With you are\n"
+    putStr (enumerate (length xs + 1) p)
+    putStr "You can see\n"
+    putStr (enumerate (length xs + length p + 1) (characters !! n `minus` p))
+    putStr "What will you do?\n"
+    str <- getLine
+    if str `elem` exitWords
+    then putStr ""
+    else do
+        let is = (map read $ (words str) :: [Int])
+        if length is == 1 && (is !! 0) <= length xs
+        then do
+            let m = ns !! ((is !! 0) - 1)
+            loop (Game m p ps)
+        else do
+            let startlen1  = length xs + 1
+            let startlen2  = length xs + length p + 1
+            let chars = characters !! n `minus` p
+            let js = [ j | (x,j) <- (zip [startlen1..] p) ++ (zip [startlen2..] chars), x `elem` is ]
+            let d = findDialogue js
+            g <- dialogue (Game n p ps) d
+            loop g
+
+game :: IO ()
+game = loop start
 
 ------------------------- PART 4: Solving the game
 
