@@ -182,14 +182,28 @@ game = loop start
 
 ------------------------- PART 4: Solving the game
 
-
--- talk' :: Dialogue -> [(Event,[Int])]
-talk' = undefined
-
--- talk :: Dialogue -> [(Event,String)]
-talk = undefined
-
 {-
+data Dialogue = End     String
+              | Choice  String  [( String , Dialogue )]
+              | Action  String  Event
+-}
+
+talk' :: Dialogue -> [(Event,[Int])]
+talk' (End _)       = []
+talk' (Action _ e)  = [(e, [])]
+talk' (Choice _ xs) = concat [ [(e, (choices x y)) | (e, y) <- talk' d] | ((_, d), x) <- (zip xs [1..]) ]
+    where choices w z = w:z
+
+talk :: Dialogue -> [(Event,String)]
+--talk (End _)       = []
+--talk (Action _ e)  = [(e, "")]
+talk d = [ (e, "In the dialogue, choose " ++ s) | (e, s) <- t d ]
+    where t (End _) = []
+          t (Action _ e) = [(e, "")]
+          t (Choice _ xs) = concat [ [(e, (choices x y)) | (e, y) <- t d] | ((_, d), x) <- (zip xs [1..]) ]
+          choices w z = show w ++ " " ++ z
+
+
 event :: String -> Event
 event s _ = Game 0 ["Event: " ++ s] []
 
@@ -203,18 +217,27 @@ testTalk' = [ (e Won,xs) | (e,xs) <- talk' testDialogue]
 
 testTalk :: [(Game,String)]
 testTalk = [ (e Won,str) | (e,str) <- talk testDialogue]
--}
+
 
 -------------------------
 
 extend :: Map -> (Node,[Int]) -> [(Node,[Int])]
-extend = undefined
+extend [] _ = []
+extend m (n, xs) = [ (x, i:xs) | (x, i) <- zip (bothWays n m) [1..] ]
 
 travel' :: Map -> [(Node,[Int])] -> [(Node,[Int])] -> [(Node,[Int])]
-travel' = undefined
+travel' m vs [] = vs
+travel' m vs (r:rs)
+    | (fst r) `elem` vnodes = travel' m vs rs
+    | otherwise             = travel' m (vs ++ [r]) (rs ++ (try r))
+        where vnodes = [ n | (n,_) <- vs ]
+              try r = [ x | x <- (extend m r), (fst x) `notElem` vnodes ]
 
 travel :: Map -> Game -> [(Game,String)]
-travel = undefined
+travel m (Game n p ps) = [ ((Game w p ps), ("Travel to " ++ (locations !! w) ++ ": " ++ print (reverse z))) | (w,z) <- travel' m [] [(n,[])] ]
+    where
+      print []     = ""
+      print (x:xs) = show x ++ " " ++ print xs
 
 -------------------------
 
