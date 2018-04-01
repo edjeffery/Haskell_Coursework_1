@@ -242,17 +242,36 @@ travel m (Game n p ps) = [ ((Game w p ps), ("Travel to " ++ (locations !! w) ++ 
 -------------------------
 
 act :: Game -> [(Game,String)]
-act = undefined
+act Won = []
+act (Game n p ps) = concat [ [ ((e (Game n p ps)), print q s) | (e,s) <- talk d, (suitable (Game n p ps) e) == True ] | (q, d) <- dialogues, (allIn q allp) == True ]
+    where
+      allp = p ++ characters !! n
+      allIn [] ps = True
+      allIn (q:qs) ps
+          | q `elem` ps = allIn qs ps
+          | otherwise   = False
+      print q s = "Talk to " ++ unwords q ++ "\n" ++ s ++ "\n"
 
--- suitable :: Game -> Event -> Bool
-suitable = undefined
+suitable :: Game -> Event -> Bool
+suitable Won _ = True
+suitable (Game n p ps) e = test (e (Game n p ps))
+    where
+      test Won = True
+      test (Game o q qs)
+          | q /= p = True
+          | qs /= ps = True
+          | otherwise = False
 
 solve :: IO ()
-solve = undefined
+solve = do
+  putStrLn (solveLoop (start, ""))
+  return ()
   where
     --solveLoop :: Game -> String
-    --solveLoop :: (Game,String) -> String
-
+    solveLoop :: (Game,String) -> String
+    solveLoop (Won, _) = "\nYou have won!"
+    --solveLoop ((Game n p ps), st) = concat [ solveLoop (fst ((act g) !! 0), s ++ "\n" ++ snd ((act g) !! 0) ++ "\n" ) | (g, s) <- travel theMap (Game n p ps) ]
+    solveLoop ((Game n p ps), st) = concat [ concat [ solveLoop (ga, (st ++ s ++ "\n" ++ sa ++ "\n")) | ((ga, sa), x) <- zip (act g) [1..], x == 1 ] | (g, s) <- travel theMap (Game n p ps) ]
 
 
 ------------------------- Game data
