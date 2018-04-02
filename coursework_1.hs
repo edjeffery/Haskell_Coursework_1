@@ -70,30 +70,11 @@ updateAt :: Node -> Party -> Party -> Event
 updateAt _ _ _ Won = Won
 updateAt m xs ys (Game n p ps) = Game n p (applyAt m (merge ys) (applyAt m (flipminus xs) ps))
 
-{-
-updateAt :: Node -> Party -> Party -> Event
-updateAt m xs ys Won = Won
-updateAt m xs ys (Game n p ps) = (Game n p merged)
-    where
-        (zs, w:ws) = splitAt m ps
-        minused = zs ++ [minus w xs] ++ ws
-        merged = applyAt m (merge ys) minused
-
-update :: Party -> Party -> Party -> Event
-update xs ys zs Won           = Won
-update xs ys zs (Game n p ps) = (Game n q merged)
-    where
-        q = merge (minus p xs) ys
-        (vs, w:ws) = splitAt n ps
-        minused = vs ++ [minus w xs] ++ ws
-        merged = applyAt n (merge zs) minused
--}
-
 update :: Party -> Party -> Party -> Event
 update _  _  _   Won          = Won
 update xs ys zs (Game n p ps) = Game n q qs
     where
-        q  = merge (minus p xs) ys
+        q  = merge (minus (msort p) xs) ys
         qs = applyAt n (merge zs) (applyAt n (flipminus xs) ps)
 
 
@@ -157,7 +138,7 @@ loop (Game n p ps) = do
     putStr "With you are\n"
     putStr (enumerate (length xs + 1) p)
     putStr "You can see\n"
-    putStr (enumerate (length xs + length p + 1) (characters !! n `minus` p))
+    putStr (enumerate (length xs + length p + 1) (ps !! n `minus` p))
     putStr "What will you do?\n"
     str <- getLine
     if str `elem` exitWords
@@ -171,9 +152,10 @@ loop (Game n p ps) = do
         else do
             let startlen1  = length xs + 1
             let startlen2  = length xs + length p + 1
-            let chars = characters !! n `minus` p
+            let chars = ps !! n `minus` p
             let js = [ j | (x,j) <- (zip [startlen1..] p) ++ (zip [startlen2..] chars), x `elem` is ]
-            let d = findDialogue js
+            putStrLn ("js: " ++ show js)
+            let d = findDialogue (msort js) -- msort needed?
             g <- dialogue (Game n p ps) d
             loop g
 
@@ -258,8 +240,9 @@ suitable (Game n p ps) e = test (e (Game n p ps))
     where
       test Won = True
       test (Game o q qs)
-          | q /= p = True
-          | qs /= ps = True
+          | (length q) > (length p) = True
+      --    | qs /= ps = True
+          | length (concat qs) > length (concat characters) = True --new character added to game
           | otherwise = False
 
 solve :: IO ()
@@ -271,7 +254,20 @@ solve = do
     solveLoop :: (Game,String) -> String
     solveLoop (Won, _) = "\nYou have won!"
     --solveLoop ((Game n p ps), st) = concat [ solveLoop (fst ((act g) !! 0), s ++ "\n" ++ snd ((act g) !! 0) ++ "\n" ) | (g, s) <- travel theMap (Game n p ps) ]
-    solveLoop ((Game n p ps), st) = concat [ concat [ solveLoop (ga, (st ++ s ++ "\n" ++ sa ++ "\n")) | ((ga, sa), x) <- zip (act g) [1..], x == 1 ] | (g, s) <- travel theMap (Game n p ps) ]
+    --solveLoop ((Game n p ps), st) = concat [ concat [ solveLoop (ga, (st ++ s ++ "\n" ++ sa ++ "\n")) | ((ga, sa), x) <- zip (act g) [1..], x == 1 ] | ((g, s), y) <- zip (travel theMap (Game n p ps)) [1..], y == 1 ]
+    --solveLoop ((Game n p ps), st) = solveLoop ( [  [ (ga, (st ++ s ++ "\n" ++ sa ++ "\n")) | ((ga, sa), x) <- zip (act g) [1..], x == 1 ] !! 0 | ((g, s), y) <- zip (travel theMap (Game n p ps)) [1..], y == 1 ] !! 0 )
+    {-solveLoop ((Game n p ps), st) = solveLoop (ga, string)
+        where
+          actions = [ act g | (g, s) <- travel theMap (Game n p ps) ]
+          getAction (a:as) =
+          g = fst (ts !! 0)
+          s = snd (ts !! 0)
+          ga
+              | length (act g) == 0    = fst ((act g) !! 0)
+          sa = snd ((act g) !! 0)
+          string = st ++ s ++ "\n" ++ sa ++ "\n"
+
+getAction :: [] -}
 
 
 ------------------------- Game data
