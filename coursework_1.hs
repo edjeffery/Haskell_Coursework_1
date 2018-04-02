@@ -1,4 +1,4 @@
-
+--import Debug.Trace (trace)
 
 -------------------------
 
@@ -154,7 +154,6 @@ loop (Game n p ps) = do
             let startlen2  = length xs + length p + 1
             let chars = ps !! n `minus` p
             let js = [ j | (x,j) <- (zip [startlen1..] p) ++ (zip [startlen2..] chars), x `elem` is ]
-            putStrLn ("js: " ++ show js)
             let d = findDialogue (msort js) -- msort needed?
             g <- dialogue (Game n p ps) d
             loop g
@@ -173,7 +172,7 @@ data Dialogue = End     String
 talk' :: Dialogue -> [(Event,[Int])]
 talk' (End _)       = []
 talk' (Action _ e)  = [(e, [])]
-talk' (Choice _ xs) = concat [ [(e, (choices x y)) | (e, y) <- talk' d] | ((_, d), x) <- (zip xs [1..]) ]
+talk' (Choice _ xs) = concat [ [(e, (choices x y)) | (e, y) <- talk' d] | ((_,d), x) <- (zip xs [1..]) ]
     where choices w z = w:z
 
 talk :: Dialogue -> [(Event,String)]
@@ -227,22 +226,38 @@ act :: Game -> [(Game,String)]
 act Won = []
 act (Game n p ps) = concat [ [ ((e (Game n p ps)), print q s) | (e,s) <- talk d, (suitable (Game n p ps) e) == True ] | (q, d) <- dialogues, (allIn q allp) == True ]
     where
-      allp = p ++ characters !! n
+      allp = p ++ ps !! n
       allIn [] ps = True
       allIn (q:qs) ps
           | q `elem` ps = allIn qs ps
           | otherwise   = False
       print q s = "Talk to " ++ unwords q ++ "\n" ++ s ++ "\n"
 
+act' :: Game -> [(Game,String)]
+act' Won = []
+act' (Game n p ps) = concat [ [ ((e (Game n p ps)), print q s) | (e,s) <- talk d ] | (q, d) <- dialogues, (allIn q allp) == True ]
+    where
+      allp = p ++ ps !! n
+      allIn [] _ = True
+      allIn (q:qs) rs
+          | q `elem` rs = allIn qs rs
+          | otherwise   = False
+      print q s = "Talk to " ++ unwords q ++ "\n" ++ s ++ "\n"
+
+{-allIn [] ps = True
+allIn (q:qs) ps
+    | q `elem` ps = allIn qs ps
+    | otherwise   = False-}
+
 suitable :: Game -> Event -> Bool
 suitable Won _ = True
 suitable (Game n p ps) e = test (e (Game n p ps))
     where
       test Won = True
-      test (Game o q qs)
+      test (Game _ q qs)
           | (length q) > (length p) = True
-      --    | qs /= ps = True
-          | length (concat qs) > length (concat characters) = True --new character added to game
+          | length (minus q p) > 0  = True
+          | length (merge (merge (msort (concat characters)) (msort (concat qs))) (p ++ q)) > length (merge (merge (msort (concat characters)) (msort (concat ps))) (p ++ q)) = True --new character added to game
           | otherwise = False
 
 solve :: IO ()
@@ -252,22 +267,19 @@ solve = do
   where
     --solveLoop :: Game -> String
     solveLoop :: (Game,String) -> String
-    solveLoop (Won, _) = "\nYou have won!"
+    solveLoop (Won, s) = s
     --solveLoop ((Game n p ps), st) = concat [ solveLoop (fst ((act g) !! 0), s ++ "\n" ++ snd ((act g) !! 0) ++ "\n" ) | (g, s) <- travel theMap (Game n p ps) ]
     --solveLoop ((Game n p ps), st) = concat [ concat [ solveLoop (ga, (st ++ s ++ "\n" ++ sa ++ "\n")) | ((ga, sa), x) <- zip (act g) [1..], x == 1 ] | ((g, s), y) <- zip (travel theMap (Game n p ps)) [1..], y == 1 ]
     --solveLoop ((Game n p ps), st) = solveLoop ( [  [ (ga, (st ++ s ++ "\n" ++ sa ++ "\n")) | ((ga, sa), x) <- zip (act g) [1..], x == 1 ] !! 0 | ((g, s), y) <- zip (travel theMap (Game n p ps)) [1..], y == 1 ] !! 0 )
-    {-solveLoop ((Game n p ps), st) = solveLoop (ga, string)
+    solveLoop ((Game n p ps), st) = solveLoop (ga, string)
         where
-          actions = [ act g | (g, s) <- travel theMap (Game n p ps) ]
-          getAction (a:as) =
-          g = fst (ts !! 0)
-          s = snd (ts !! 0)
-          ga
-              | length (act g) == 0    = fst ((act g) !! 0)
-          sa = snd ((act g) !! 0)
+          actions = concat [ act g | (g, s) <- travel theMap (Game n p ps) ]
+          action = actions !! 0
+          s = snd ((travel theMap (Game n p ps)) !! 0)
+          ga = fst (action)
+          sa = snd (action)
           string = st ++ s ++ "\n" ++ sa ++ "\n"
 
-getAction :: [] -}
 
 
 ------------------------- Game data
