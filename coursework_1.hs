@@ -178,7 +178,7 @@ talk' (Choice _ xs) = concat [ [(e, (choices x y)) | (e, y) <- talk' d] | ((_,d)
 talk :: Dialogue -> [(Event,String)]
 --talk (End _)       = []
 --talk (Action _ e)  = [(e, "")]
-talk d = [ (e, "In the dialogue, choose " ++ s) | (e, s) <- t d ]
+talk d = [ if length s == 0 then (e,"") else (e, "In the dialogue, choose " ++ s ++ "\n") | (e, s) <- t d ]
     where t (End _) = []
           t (Action _ e) = [(e, "")]
           t (Choice _ xs) = concat [ [(e, (choices x y)) | (e, y) <- t d] | ((_, d), x) <- (zip xs [1..]) ]
@@ -215,8 +215,11 @@ travel' m vs (r:rs)
               try r = [ x | x <- (extend m r), (fst x) `notElem` vnodes ]
 
 travel :: Map -> Game -> [(Game,String)]
-travel m (Game n p ps) = [ ((Game w p ps), ("Travel to " ++ (locations !! w) ++ ": " ++ print (reverse z))) | (w,z) <- travel' m [] [(n,[])] ]
+travel m (Game n p ps) = [ ((Game w p ps), (str w z)) | (w,z) <- travel' m [] [(n,[])] ]
     where
+      str w z
+          | length z == 0 = "Stay in " ++ (locations !! w)
+          | otherwise     = "Travel to " ++ (locations !! w) ++ ": " ++ print (reverse z)
       print []     = ""
       print (x:xs) = show x ++ " " ++ print xs
 
@@ -231,9 +234,16 @@ act (Game n p ps) = concat [ [ ((e (Game n p ps)), print q s) | (e,s) <- talk d,
       allIn (q:qs) ps
           | q `elem` ps = allIn qs ps
           | otherwise   = False
-      print q s = "Talk to " ++ unwords q ++ "\n" ++ s ++ "\n"
+      print q s = "Talk to " ++ unwords' q ++ "\n" ++ s
 
-act' :: Game -> [(Game,String)]
+-- my own unwords function so I can have 'and' in between the characters
+unwords' :: [String] -> String
+unwords' [] = []
+unwords' (x:xs)
+  | null xs   = x
+  | otherwise = x ++ " and " ++ unwords' xs
+
+{-act' :: Game -> [(Game,String)]
 act' Won = []
 act' (Game n p ps) = concat [ [ ((e (Game n p ps)), print q s) | (e,s) <- talk d ] | (q, d) <- dialogues, (allIn q allp) == True ]
     where
@@ -244,7 +254,7 @@ act' (Game n p ps) = concat [ [ ((e (Game n p ps)), print q s) | (e,s) <- talk d
           | otherwise   = False
       print q s = "Talk to " ++ unwords q ++ "\n" ++ s ++ "\n"
 
-{-allIn [] ps = True
+allIn [] ps = True
 allIn (q:qs) ps
     | q `elem` ps = allIn qs ps
     | otherwise   = False-}
@@ -267,7 +277,7 @@ solve = do
   where
     --solveLoop :: Game -> String
     solveLoop :: (Game,String) -> String
-    solveLoop (Won, s) = s
+    solveLoop (Won, s) = s ++ "You have won!"
     --solveLoop ((Game n p ps), st) = concat [ solveLoop (fst ((act g) !! 0), s ++ "\n" ++ snd ((act g) !! 0) ++ "\n" ) | (g, s) <- travel theMap (Game n p ps) ]
     --solveLoop ((Game n p ps), st) = concat [ concat [ solveLoop (ga, (st ++ s ++ "\n" ++ sa ++ "\n")) | ((ga, sa), x) <- zip (act g) [1..], x == 1 ] | ((g, s), y) <- zip (travel theMap (Game n p ps)) [1..], y == 1 ]
     --solveLoop ((Game n p ps), st) = solveLoop ( [  [ (ga, (st ++ s ++ "\n" ++ sa ++ "\n")) | ((ga, sa), x) <- zip (act g) [1..], x == 1 ] !! 0 | ((g, s), y) <- zip (travel theMap (Game n p ps)) [1..], y == 1 ] !! 0 )
@@ -275,10 +285,17 @@ solve = do
         where
           actions = concat [ act g | (g, s) <- travel theMap (Game n p ps) ]
           action = actions !! 0
-          s = snd ((travel theMap (Game n p ps)) !! 0)
+          x = location action ([ act g | (g, s) <- travel theMap (Game n p ps) ]) 0
+          s = snd ((travel theMap (Game n p ps)) !! x)
+          --s = snd ((travel theMap (Game n p ps)) !! 0)
           ga = fst (action)
           sa = snd (action)
           string = st ++ s ++ "\n" ++ sa ++ "\n"
+
+location :: (Game,String) -> [[(Game,String)]] -> Int -> Int
+location a (x:xs) i
+   | a `elem` x  = i
+   | otherwise = location a xs (i + 1)
 
 
 
